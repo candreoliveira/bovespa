@@ -19,51 +19,81 @@ class Account:
         raise errs.ArgumentError("Remove position didn't receive a position {0}.".format(pos))
       self.positions = list(filter(lambda x: x.id != pos.id, self.positions))
 
+    def get_position(self, datetime):
+      return list(filter(lambda x: x.datetime == datetime, self.positions))[0]
+
+    # Considera-se uma compra efetivada no fim do dia, ou seja, dia de compra não tem possível lucro/prejuízo.
     def balance(self, start, end):
       def can_record(dt, start, end):
         return dt >= start and dt <= end
-        
-      totalCost, totalRevenue, totalResult = 0, 0, 0
+
       output = {
         "cost": [],
         "revenue": [],
         "result": [],
         "datetime": [],
-        "custody": {}
+        "custody": {},
+        "total": {
+          "cost": 0,
+          "revenue": 0,
+          "result": 0
+        }
       }
 
-      sorted_positions = sorted(self.positions, key=lambda x: x.count, reverse=False)
+      sorted_positions = sorted(self.positions, key=lambda x: x.datetime, reverse=False)
       first_position = sorted_positions[0]
       last_position = sorted_positions[len(sorted_positions)-1]
 
       if first_position.type != "buy" or last_position.type != "sell":
         raise errs.AccountPositionsError("First and last positions must be buy and sell.")
 
-      for p in sorted_positions:
-        for today in daterange(first_position.datetime, last_position.datetime):
-          fdatetime = today.strftime("%Y-%m-%d-%H-%M-%S-%f")
+      for today in daterange(first_position.datetime, last_position.datetime):
+        fdatetime = today.strftime("%Y-%m-%d-%H-%M-%S-%f")
+        p = self.get_position(today)
+        x, c = None, None
 
-          if can_record(today, start, end):
-            if p.datetime == today:
-              print()
+        if p and p.type == "buy":
+          x -= (p.price * p.quantity)
+          c = p.comission
+        elif p and p.type == "sell":
+          x += (p.price * p.quantity)
+          c = p.comission
+        else:
+          x = 0.0
+          c = 0.0
+
+        if can_record(today, start, end):
+          output["cost"].append(c)
+          output["total"]["cost"] += c
+
+          revenue = {}
+          for stock in output["custody"].keys():
+            # Get last date and last custody
+            len_custody = len(output["custody"][stock])
+            len_datetime = len(output["datetime"])
+            last_custody = output["custody"][stock][len_custody-1] if len_custody > 0 else 0
+            last_datetime = output["datetime"][len_datetime-1] if len_datetime > 0 else None
+
+            # Calculate revenue per stock
+            revenue[stock] = (quotation.Quotation.get_price(stock, today) - quotation.Quotation.get_price(stock, last_datetime)) * last_custody
+
+            # Keep the same custody and append
+            if p.datetime == today and p.type == "buy":
+              output["custody"][stock].append(last_custody + p.quantity)
+            elif p.datetime == today and p.type == "sell":
+              output["custody"][stock].append(last_custody - p.quantity)
             else:
-              output["cost"].append(0.0)
+              output["custody"][stock].append(last_custody + p.quantity)
 
-              revenue = {}
-              for stock in output["custody"].keys():
-                len_custody = len(output["custody"][stock])
-                len_datetime = len(output["datetime"])
-                last_custody = output["custody"][stock][len_custody-1] if len_custody > 0 else 0
-                last_datetime = output["datetime"][len_datetime-1] if len_datetime > 0 else None
-                
-                output["custody"][stock].append(last_custody)
-                revenue[stock] = (quotation.get_price(stock, today) - quotation.get_price(stock, last_datetime)) * last_custody
+          # Sum all stocks
+          r = reduce(lambda cum, cur: cum + cur, revenue.values(), 0.0)
+          output["total"]["revenue"] += r
+          output["revenue"].append(r)
 
-              output["revenue"].append(reduce(lambda cum, cur: cum + cur, revenue[stock].values()))
-              output["result"].append()
-
-            output["datetime"].append(fdatetime)
-
-            
+          # Sum all results
+          t = r + x - c
+          output["total"]["result"] += t
+          output["result"].append(t)
+          output["datetime"].append(fdatetime)
 
       return output
