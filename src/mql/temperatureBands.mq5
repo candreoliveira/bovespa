@@ -14,8 +14,8 @@
 #property script_show_inputs
 #property indicator_applied_price PRICE_CLOSE
 
-#property indicator_buffers 8
-#property indicator_plots 6
+#property indicator_buffers 17
+#property indicator_plots 16
 
 #property indicator_type1 DRAW_ARROW
 #property indicator_color1 clrChocolate
@@ -47,6 +47,56 @@
 #property indicator_label6 "Cold Change Down"
 #property indicator_style6 3
 
+#property indicator_type7 DRAW_LINE
+#property indicator_color7 clrLightSkyBlue
+#property indicator_label7 "Price Weighted (CV) Band Upper"
+#property indicator_style7 2
+
+#property indicator_type8 DRAW_LINE
+#property indicator_color8 clrDodgerBlue
+#property indicator_label8 "Price Weighted (CV) Band Middle Upper"
+#property indicator_style8 4
+
+#property indicator_type9 DRAW_LINE
+#property indicator_color9 clrMediumBlue
+#property indicator_label9 "Price Weighted (CV) Band Middle"
+#property indicator_style9 3
+
+#property indicator_type10 DRAW_LINE
+#property indicator_color10 clrDodgerBlue
+#property indicator_label10 "Price Weighted (CV) Band Middle Lower"
+#property indicator_style10 4
+
+#property indicator_type11 DRAW_LINE
+#property indicator_color11 clrLightSkyBlue
+#property indicator_label11 "Price Weighted (CV) Band Lower"
+#property indicator_style11 2
+
+#property indicator_type12 DRAW_LINE
+#property indicator_color12 clrDarkSeaGreen
+#property indicator_label12 "Price Weighted (HLCC) Band Upper"
+#property indicator_style12 2
+
+#property indicator_type13 DRAW_LINE
+#property indicator_color13 clrMediumSeaGreen
+#property indicator_label13 "Price Weighted (HLCC) Band Middle Upper"
+#property indicator_style13 4
+
+#property indicator_type14 DRAW_LINE
+#property indicator_color14 clrSeaGreen
+#property indicator_label14 "Price Weighted (HLCC) Band Middle"
+#property indicator_style14 3
+
+#property indicator_type15 DRAW_LINE
+#property indicator_color15 clrMediumSeaGreen
+#property indicator_label15 "Price Weighted (HLCC) Band Middle Lower"
+#property indicator_style15 4
+
+#property indicator_type16 DRAW_LINE
+#property indicator_color16 clrDarkSeaGreen
+#property indicator_label16 "Price Weighted (HLCC) Band Lower"
+#property indicator_style16 2
+
 //--- input parametrs
 input ENUM_APPLIED_VOLUME volumeType = VOLUME_REAL; // Volume
 
@@ -54,28 +104,28 @@ input int bandsPeriod = 21; // Period
 input int bandsShift = 0; // Shift
 input double bandsDeviations = 2.0; // Deviation
 
-input int firstLimit = 1; // 1st Index Limit (Wgt Avg)
-input double firstWeight = 10; // 1st Weight (Wgt Avg)
+input int firstLimit = 1; // 1st Index Limit (CV Weighted Avg)
+input double firstWeight = 10; // 1st Weight (CV Weighted Avg)
 
-input int secondLimit = 7; // 2nd Index Limit (Wgt Avg)
-input double secondWeight = 5; // 2nd Weight (Wgt Avg)
+input int secondLimit = 7; // 2nd Index Limit (CV Weighted Avg)
+input double secondWeight = 5; // 2nd Weight (CV Weighted Avg)
 
-input int thirdLimit = 14; // 3rd Index Limit (Wgt Avg)
-input double thirdWeight = 3; // 3rd Weight (Wgt Avg)
+input int thirdLimit = 14; // 3rd Index Limit (CV Weighted Avg)
+input double thirdWeight = 3; // 3rd Weight (CV Weighted Avg)
 
-input int fourthLimit = 21; // 4th Index Limit (Wgt Avg)
-input double fourthWeight = 1; // 4th Weight (Wgt Avg)
+input int fourthLimit = 21; // 4th Index Limit (CV Weighted Avg)
+input double fourthWeight = 1; // 4th Weight (CV Weighted Avg)
 
-input double defWeight = 0.5; // Default Weight (Wgt Avg)
+input double defWeight = 0.5; // Default Weight (CV Weighted Avg)
 
-input int stochPeriodK = 21; // Stochastic Period K
-input int stochPeriodD = 7; // Stochastic Period D
-input int stochSlowing = 3; // Stochastic Slowing
-input ENUM_MA_METHOD stochMAType = MODE_SMA; // Stochastic Moving Average Type
-input ENUM_STO_PRICE stochPrice = STO_CLOSECLOSE; // Stochastic Price
+input int stochPeriodK = 21; // Period K (Stochastic)
+input int stochPeriodD = 7; // Period D (Stochastic)
+input int stochSlowing = 3; // Slowing (Stochastic)
+input ENUM_MA_METHOD stochMAType = MODE_SMA; // Moving Average Type (Stochastic)
+input ENUM_STO_PRICE stochPrice = STO_CLOSECLOSE; // Price Type (Stochastic)
 
-input int stochUpperLevel = 60; // Stochastic Upper Level
-input int stochLowerLevel = 35; // Stochastic Lower Level
+input int stochUpperLevel = 60; // Upper Thresold (Stochastic)
+input int stochLowerLevel = 35; // Lower Thresold (Stochastic)
 
 //--- global variables
 int extBandsPeriod,
@@ -94,8 +144,17 @@ double coldUp[];
 double hotDown[];
 double warmDown[];
 double coldDown[];
+double cvUpper[];
+double cvMiddleUpper[];
+double cvMiddle[];
+double cvMiddleLower[];
+double cvLower[];
+double hlccUpper[];
+double hlccMiddleUpper[];
+double hlccMiddle[];
+double hlccMiddleLower[];
+double hlccLower[];
 double trend[];
-double mark[];
 
 //+------------------------------------------------------------------+
 //| Custom indicator initialization function                         |
@@ -145,8 +204,17 @@ void OnInit() {
   SetIndexBuffer(3, hotDown, INDICATOR_DATA);
   SetIndexBuffer(4, warmDown, INDICATOR_DATA);
   SetIndexBuffer(5, coldDown, INDICATOR_DATA);
-  SetIndexBuffer(6, trend, INDICATOR_CALCULATIONS);
-  SetIndexBuffer(7, mark, INDICATOR_CALCULATIONS);
+  SetIndexBuffer(6, cvUpper, INDICATOR_DATA);
+  SetIndexBuffer(7, cvMiddleUpper, INDICATOR_DATA);
+  SetIndexBuffer(8, cvMiddle, INDICATOR_DATA);
+  SetIndexBuffer(9, cvMiddleLower, INDICATOR_DATA);
+  SetIndexBuffer(10, cvLower, INDICATOR_DATA);
+  SetIndexBuffer(11, hlccUpper, INDICATOR_DATA);
+  SetIndexBuffer(12, hlccMiddleUpper, INDICATOR_DATA);
+  SetIndexBuffer(13, hlccMiddle, INDICATOR_DATA);
+  SetIndexBuffer(14, hlccMiddleLower, INDICATOR_DATA);
+  SetIndexBuffer(15, hlccLower, INDICATOR_DATA);
+  SetIndexBuffer(16, trend, INDICATOR_CALCULATIONS);
 
   //--- set index labels
   PlotIndexSetString(0, PLOT_LABEL, "Hot Bands Up(" + string(extBandsPeriod) + ")");
@@ -155,6 +223,16 @@ void OnInit() {
   PlotIndexSetString(3, PLOT_LABEL, "Hot Bands Down(" + string(extBandsPeriod) + ")");
   PlotIndexSetString(4, PLOT_LABEL, "Warm Bands Down(" + string(extBandsPeriod) + ")");
   PlotIndexSetString(5, PLOT_LABEL, "Cold Bands Down(" + string(extBandsPeriod) + ")");
+  PlotIndexSetString(6, PLOT_LABEL, "Price Weighted (CV) Band Upper(" + string(extBandsPeriod) + ")");
+  PlotIndexSetString(7, PLOT_LABEL, "Price Weighted (CV) Band Middle Upper(" + string(extBandsPeriod) + ")");
+  PlotIndexSetString(8, PLOT_LABEL, "Price Weighted (CV) Band Middle(" + string(extBandsPeriod) + ")");
+  PlotIndexSetString(9, PLOT_LABEL, "Price Weighted (CV) Band Middle Lower(" + string(extBandsPeriod) + ")");
+  PlotIndexSetString(10, PLOT_LABEL, "Price Weighted (CV) Band Lower(" + string(extBandsPeriod) + ")");
+  PlotIndexSetString(11, PLOT_LABEL, "Price Weighted (HLCC) Band Upper(" + string(extBandsPeriod) + ")");
+  PlotIndexSetString(12, PLOT_LABEL, "Price Weighted (HLCC) Band Middle Upper(" + string(extBandsPeriod) + ")");
+  PlotIndexSetString(13, PLOT_LABEL, "Price Weighted (HLCC) Band Middle(" + string(extBandsPeriod) + ")");
+  PlotIndexSetString(14, PLOT_LABEL, "Price Weighted (HLCC) Band Middle Lower(" + string(extBandsPeriod) + ")");
+  PlotIndexSetString(15, PLOT_LABEL, "Price Weighted (HLCC) Band Lower(" + string(extBandsPeriod) + ")");
 
   //--- indicator name
   IndicatorSetString(INDICATOR_SHORTNAME, "Temperature Bands");
@@ -167,6 +245,16 @@ void OnInit() {
   PlotIndexSetInteger(3, PLOT_DRAW_BEGIN, extBandsPeriod);
   PlotIndexSetInteger(4, PLOT_DRAW_BEGIN, extBandsPeriod);
   PlotIndexSetInteger(5, PLOT_DRAW_BEGIN, extBandsPeriod);
+  PlotIndexSetInteger(6, PLOT_DRAW_BEGIN, extBandsPeriod);
+  PlotIndexSetInteger(7, PLOT_DRAW_BEGIN, extBandsPeriod);
+  PlotIndexSetInteger(8, PLOT_DRAW_BEGIN, extBandsPeriod);
+  PlotIndexSetInteger(9, PLOT_DRAW_BEGIN, extBandsPeriod);
+  PlotIndexSetInteger(10, PLOT_DRAW_BEGIN, extBandsPeriod);
+  PlotIndexSetInteger(11, PLOT_DRAW_BEGIN, extBandsPeriod);
+  PlotIndexSetInteger(12, PLOT_DRAW_BEGIN, extBandsPeriod);
+  PlotIndexSetInteger(13, PLOT_DRAW_BEGIN, extBandsPeriod);
+  PlotIndexSetInteger(14, PLOT_DRAW_BEGIN, extBandsPeriod);
+  PlotIndexSetInteger(15, PLOT_DRAW_BEGIN, extBandsPeriod);
 
   //--- indexes shift settings
   PlotIndexSetInteger(0, PLOT_SHIFT, extBandsShift);
@@ -175,6 +263,16 @@ void OnInit() {
   PlotIndexSetInteger(3, PLOT_SHIFT, extBandsShift);
   PlotIndexSetInteger(4, PLOT_SHIFT, extBandsShift);
   PlotIndexSetInteger(5, PLOT_SHIFT, extBandsShift);
+  PlotIndexSetInteger(6, PLOT_SHIFT, extBandsShift);
+  PlotIndexSetInteger(7, PLOT_SHIFT, extBandsShift);
+  PlotIndexSetInteger(8, PLOT_SHIFT, extBandsShift);
+  PlotIndexSetInteger(9, PLOT_SHIFT, extBandsShift);
+  PlotIndexSetInteger(10, PLOT_SHIFT, extBandsShift);
+  PlotIndexSetInteger(11, PLOT_SHIFT, extBandsShift);
+  PlotIndexSetInteger(12, PLOT_SHIFT, extBandsShift);
+  PlotIndexSetInteger(13, PLOT_SHIFT, extBandsShift);
+  PlotIndexSetInteger(14, PLOT_SHIFT, extBandsShift);
+  PlotIndexSetInteger(15, PLOT_SHIFT, extBandsShift);
 
   PlotIndexSetInteger(0, PLOT_ARROW, 217);
   PlotIndexSetInteger(1, PLOT_ARROW, 217);
@@ -196,6 +294,16 @@ void OnInit() {
   PlotIndexSetInteger(3, PLOT_LINE_COLOR, clrChocolate);
   PlotIndexSetInteger(4, PLOT_LINE_COLOR, clrGold);
   PlotIndexSetInteger(5, PLOT_LINE_COLOR, clrBlueViolet);
+  PlotIndexSetInteger(6, PLOT_LINE_COLOR, clrLightSkyBlue);
+  PlotIndexSetInteger(7, PLOT_LINE_COLOR, clrDodgerBlue);
+  PlotIndexSetInteger(8, PLOT_LINE_COLOR, clrMediumBlue);
+  PlotIndexSetInteger(9, PLOT_LINE_COLOR, clrDodgerBlue);
+  PlotIndexSetInteger(10, PLOT_LINE_COLOR, clrLightSkyBlue);
+  PlotIndexSetInteger(11, PLOT_LINE_COLOR, clrDarkSeaGreen);
+  PlotIndexSetInteger(12, PLOT_LINE_COLOR, clrMediumSeaGreen);
+  PlotIndexSetInteger(13, PLOT_LINE_COLOR, clrSeaGreen);
+  PlotIndexSetInteger(14, PLOT_LINE_COLOR, clrMediumSeaGreen);
+  PlotIndexSetInteger(15, PLOT_LINE_COLOR, clrDarkSeaGreen);
 
   PlotIndexSetDouble(0, PLOT_EMPTY_VALUE, 0.0);
   PlotIndexSetDouble(1, PLOT_EMPTY_VALUE, 0.0);
@@ -203,6 +311,16 @@ void OnInit() {
   PlotIndexSetDouble(3, PLOT_EMPTY_VALUE, 0.0);
   PlotIndexSetDouble(4, PLOT_EMPTY_VALUE, 0.0);
   PlotIndexSetDouble(5, PLOT_EMPTY_VALUE, 0.0);
+  PlotIndexSetDouble(6, PLOT_EMPTY_VALUE, 0.0);
+  PlotIndexSetDouble(7, PLOT_EMPTY_VALUE, 0.0);
+  PlotIndexSetDouble(8, PLOT_EMPTY_VALUE, 0.0);
+  PlotIndexSetDouble(9, PLOT_EMPTY_VALUE, 0.0);
+  PlotIndexSetDouble(10, PLOT_EMPTY_VALUE, 0.0);
+  PlotIndexSetDouble(11, PLOT_EMPTY_VALUE, 0.0);
+  PlotIndexSetDouble(12, PLOT_EMPTY_VALUE, 0.0);
+  PlotIndexSetDouble(13, PLOT_EMPTY_VALUE, 0.0);
+  PlotIndexSetDouble(14, PLOT_EMPTY_VALUE, 0.0);
+  PlotIndexSetDouble(15, PLOT_EMPTY_VALUE, 0.0);
 
   //--- number of digits of indicator value
   IndicatorSetInteger(INDICATOR_DIGITS, _Digits + 1);
@@ -250,8 +368,23 @@ void OnInit() {
   ArrayInitialize(hotDown, 0.0);
   ArrayInitialize(warmDown, 0.0);
   ArrayInitialize(coldDown, 0.0);
+  ArrayInitialize(hlccLower, 0.0);
+  ArrayInitialize(hlccMiddleLower, 0.0);
+  ArrayInitialize(hlccMiddle, 0.0);
+  ArrayInitialize(hlccMiddleUpper, 0.0);
+  ArrayInitialize(hlccUpper, 0.0);
+  ArrayInitialize(cvLower, 0.0);
+  ArrayInitialize(cvMiddleLower, 0.0);
+  ArrayInitialize(cvMiddle, 0.0);
+  ArrayInitialize(cvMiddleUpper, 0.0);
+  ArrayInitialize(cvUpper, 0.0);
   ArrayInitialize(trend, -1.0);
-  ArrayInitialize(mark, -1.0);
+}
+
+void onDeinit(const int reason) {
+  IndicatorRelease(stoch);
+  IndicatorRelease(volumeBands);
+  IndicatorRelease(priceBands);
 }
 
 //+------------------------------------------------------------------+
@@ -281,10 +414,8 @@ int OnCalculate(const int rates_total,
     pos = 0;
   }
 
-  double _stoK[], _stoD[],
-         _pBandUpper[], _pBandMidUpper[], _pBandLower[], _pBandMidLower[], _pBandMid[],
-         _vBandUpper[], _vBandMidUpper[], _vBandLower[], _vBandMidLower[], _vBandMid[];
-  double tempHot, tempWarm, tempCold;
+  double _stoK[], _stoD[];
+  double tempHotUp = 0.0, tempWarmUp = 0.0, tempColdUp = 0.0, tempHotDown = 0.0, tempWarmDown = 0.0, tempColdDown = 0.0;
   int tempTrend = -1, tempMark = -1, maxCopied = 0, tmpMaxCopied = 0;
 
   maxCopied = CopyBuffer(stoch, MAIN_LINE, 0, rates_total, _stoK);
@@ -294,70 +425,67 @@ int OnCalculate(const int rates_total,
   if (tmpMaxCopied <= extBandsPeriod) { return(0); }
   if (tmpMaxCopied < maxCopied) { maxCopied = tmpMaxCopied; }
 
-  tmpMaxCopied = CopyBuffer(priceBands, 0, 0, rates_total, _pBandUpper);
+  tmpMaxCopied = CopyBuffer(priceBands, 0, 0, rates_total, hlccUpper);
   if (tmpMaxCopied <= extBandsPeriod) { return(0); }
   if (tmpMaxCopied < maxCopied) { maxCopied = tmpMaxCopied; }
 
-  tmpMaxCopied = CopyBuffer(priceBands, 1, 0, rates_total, _pBandMidUpper);
+  tmpMaxCopied = CopyBuffer(priceBands, 1, 0, rates_total, hlccMiddleUpper);
   if (tmpMaxCopied <= extBandsPeriod) { return(0); }
   if (tmpMaxCopied < maxCopied) { maxCopied = tmpMaxCopied; }
 
-  tmpMaxCopied = CopyBuffer(priceBands, 2, 0, rates_total, _pBandMid);
+  tmpMaxCopied = CopyBuffer(priceBands, 2, 0, rates_total, hlccMiddle);
   if (tmpMaxCopied <= extBandsPeriod) { return(0); }
   if (tmpMaxCopied < maxCopied) { maxCopied = tmpMaxCopied; }
 
-  tmpMaxCopied = CopyBuffer(priceBands, 3, 0, rates_total, _pBandMidLower);
+  tmpMaxCopied = CopyBuffer(priceBands, 3, 0, rates_total, hlccMiddleLower);
   if (tmpMaxCopied <= extBandsPeriod) { return(0); }
   if (tmpMaxCopied < maxCopied) { maxCopied = tmpMaxCopied; }
 
-  tmpMaxCopied = CopyBuffer(priceBands, 4, 0, rates_total, _pBandLower);
+  tmpMaxCopied = CopyBuffer(priceBands, 4, 0, rates_total, hlccLower);
   if (tmpMaxCopied <= extBandsPeriod) { return(0); }
   if (tmpMaxCopied < maxCopied) { maxCopied = tmpMaxCopied; }
 
-  tmpMaxCopied = CopyBuffer(volumeBands, 0, 0, rates_total, _vBandUpper);
+  tmpMaxCopied = CopyBuffer(volumeBands, 0, 0, rates_total, cvUpper);
   if (tmpMaxCopied <= extBandsPeriod) { return(0); }
   if (tmpMaxCopied < maxCopied) { maxCopied = tmpMaxCopied; }
 
-  tmpMaxCopied = CopyBuffer(volumeBands, 1, 0, rates_total, _vBandMidUpper);
+  tmpMaxCopied = CopyBuffer(volumeBands, 1, 0, rates_total, cvMiddleUpper);
   if (tmpMaxCopied <= extBandsPeriod) { return(0); }
   if (tmpMaxCopied < maxCopied) { maxCopied = tmpMaxCopied; }
 
-  tmpMaxCopied = CopyBuffer(volumeBands, 2, 0, rates_total, _vBandMid);
+  tmpMaxCopied = CopyBuffer(volumeBands, 2, 0, rates_total, cvMiddle);
   if (tmpMaxCopied <= extBandsPeriod) { return(0); }
   if (tmpMaxCopied < maxCopied) { maxCopied = tmpMaxCopied; }
 
-  tmpMaxCopied = CopyBuffer(volumeBands, 3, 0, rates_total, _vBandMidLower);
+  tmpMaxCopied = CopyBuffer(volumeBands, 3, 0, rates_total, cvMiddleLower);
   if (tmpMaxCopied <= extBandsPeriod) { return(0); }
   if (tmpMaxCopied < maxCopied) { maxCopied = tmpMaxCopied; }
 
-  tmpMaxCopied = CopyBuffer(volumeBands, 4, 0, rates_total, _vBandLower);
+  tmpMaxCopied = CopyBuffer(volumeBands, 4, 0, rates_total, cvLower);
   if (tmpMaxCopied <= extBandsPeriod) { return(0); }
   if (tmpMaxCopied < maxCopied) { maxCopied = tmpMaxCopied; }
+
+  // Resizing arrays
+  ArrayResize(trend, maxCopied, maxCopied);
+  ArrayInitialize(trend, -1.0);
 
   //--- main cycle
   for(int i = pos; i < maxCopied && !IsStopped(); i++) {
+    // Temperature calculations
     Bands_Temperature(_stoK, _stoD, trend, stochUpperLevel, stochLowerLevel,
-                      _pBandUpper, _pBandMidUpper, _pBandLower, _pBandMidLower, _pBandMid,
-                      _vBandUpper, _vBandMidUpper, _vBandLower, _vBandMidLower, _vBandMid,
-                      close, i, extBandsPeriod, tempHot, tempWarm, tempCold, tempTrend, tempMark);
+                      hlccUpper, hlccMiddleUpper, hlccLower, hlccMiddleLower, hlccMiddle,
+                      cvUpper, cvMiddleUpper, cvLower, cvMiddleLower, cvMiddle,
+                      hotUp, hotDown, warmUp, warmDown, coldUp, coldDown,
+                      close, i, extBandsPeriod,
+                      tempTrend, tempHotUp, tempWarmUp, tempColdUp, tempHotDown, tempWarmDown, tempColdDown);
 
-    if (tempHot >= 0.0) {
-      if (tempMark == 0 || tempMark == 1 || tempMark == 2) hotUp[i] = tempHot;
-      else if (tempMark == 6 || tempMark == 5 || tempMark == 4) hotDown[i] = tempHot;
-    }
-
-    if (tempWarm >= 0.0) {
-      if (tempMark == 0 || tempMark == 1 || tempMark == 2) warmUp[i] = tempWarm;
-      else if (tempMark == 6 || tempMark == 5 || tempMark == 4) warmDown[i] = tempWarm;
-    }
-
-    if (tempCold >= 0.0) {
-      if (tempMark == 0 || tempMark == 1 || tempMark == 2) coldUp[i] = tempCold;
-      else if (tempMark == 6 || tempMark == 5 || tempMark == 4) coldDown[i] = tempCold;
-    }
-
+    hotUp[i] = tempHotUp;
+    hotDown[i] = tempHotDown;
+    warmUp[i] = tempWarmUp;
+    warmDown[i] = tempWarmDown;
+    coldUp[i] = tempColdUp;
+    coldDown[i] = tempColdDown;
     trend[i] = (double)tempTrend;
-    mark[i] = (double)tempMark;
   }
 
   return(maxCopied);
